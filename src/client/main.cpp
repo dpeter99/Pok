@@ -17,6 +17,8 @@ using json = nlohmann::json;
 #include <sys/stat.h>
 #include <fstream>
 #include <windows.h>
+#include <direct.h>
+#include <string>
 
 constexpr unsigned int hash(const char *s, int off = 0) {                        
     return !s[off] ? 5381 : (hash(s, off+1)*33) ^ s[off];                           
@@ -51,7 +53,7 @@ int main(int argc, char* argv[]) {
     switch(hash(argv[1])) {
         case hash("search"):
             if(argc > 2)
-                path.append(argv[2]);
+                path.append("search/").append(argv[2]);
             else {
                 std::cout << "Search for what?\r\n";
                 return 1;
@@ -98,12 +100,12 @@ int main(int argc, char* argv[]) {
         std::string contentType;
 
         for(auto h : response.headers) {
-            if(h.find_first_of("Content-Type: ") == 0)
+            if(h.find("Content-Type: ") == 0)
                 contentType = h.substr(strlen("Content-Type: "));
         };
         
         if(response.body.size() > 0) {
-            if(contentType == "application/json") {
+            if(contentType.find("application/json") != std::string::npos) {
                 const std::string resBody(response.body.begin(), response.body.end());
                 json jsonResponse = json::parse(resBody);
                 std::cout << "Found package " << jsonResponse["name"] << ". Details: " << std::endl;
@@ -119,4 +121,6 @@ int main(int argc, char* argv[]) {
     } catch (const std::exception &e) {
         std::cerr << "failure " << e.what() << "\n";
     }
+
+    //std::cin.get();
 }
