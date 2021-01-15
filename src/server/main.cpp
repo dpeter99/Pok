@@ -159,10 +159,15 @@ class PokHandler : public CivetHandler {
                 // We need to fetch the archive and set the header info before we send the header
                 std::string target(fetchArchive(url.substr(1, url.find_last_of('/') + 1))); // second character up to the last / (packagename/version/)
                 header.sendHeader(connection);
-                if(!target.compare("")) {
+                if(target.size() != 0) {
                     // file_body takes a CString representing the file path
-                    mg_send_file_body(connection, target.c_str());
-                }
+                    int status = mg_send_file_body(connection, target.c_str());
+                    if (status != 0)
+                        std::cout << "   \x1b[33m✖ Error sending file: Transmission error" << std::endl;
+                    else
+                        std::cout << "   \x1b[36m=> Served successfully" << std::endl;
+                } else 
+                    std::cout << "   \x1b[33m✖ Error sending file: Path null" << std::endl;
             } else {
                 // If we're not looking for an archive, send the header and printf the content
                 header.sendHeader(connection);
@@ -248,9 +253,9 @@ class PokHandler : public CivetHandler {
             std::string fileToRead;
             std::string targetFolder = "../../packages/";
             targetFolder.append(package).append("/").append(version);
-            
-            std::cout << "   \x1b[36m=> Preparing to serve " << package << "/" << version << " from " << targetFolder <<  std::endl;
             std::vector<std::string> names(listDir(targetFolder.c_str()));
+
+
             if(names.size() > 1) {} // TODO: zip?
             fileToRead = targetFolder.append("/").append(names.at(2)); // . .. <folder contents>
             std::cout << "   \x1b[36m=> Serving " << fileToRead << std::endl;
