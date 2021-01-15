@@ -129,15 +129,16 @@ class PokHandler : public CivetHandler {
         };
 
     public:
+        json packages;
         PokHandler() {
-            metaFile.open("./packages/meta.json");
+            metaFile.open("../../packages/meta.json");
             if(!metaFile) {
-                std::cerr << "Unable to open package data!" << std::endl;
+                std::cerr << "Unable to open package data: " << strerror(errno) <<  std::endl;
                 shutdown(2);
+            } else {
+                metaFile >> packages;
             }
         }
-
-
 
         bool handleGet(CivetServer* server, struct mg_connection* connection) {
             const struct mg_request_info* req = mg_get_request_info(connection);
@@ -150,12 +151,13 @@ class PokHandler : public CivetHandler {
             std::string queryResult(
                 url.find(searchPrefix) == 0 ? searchFor(url.substr(8)) // startsWith("/search/");
                 : url.rfind(versionsPostfix) == (url.size() - versionsPostfix.size()) ? fetchVersions(url.substr(1, url.size() - 9)) // endsWith("/versions");
+                : url.rfind(archivePostfix) == (url.size() - archivePostfix.size()) ? "" // endsWith("/archive");)
                 : retrieveMeta(url.substr(1), true)); // Default to just printing information
 
             // We can't printf a file, so we have to special-case for the archive
-            if(url.rfind(archivePostfix) == (url.size() - archivePostfix.size())) {
+            if(url.rfind(archivePostfix) == (url.size() - archivePostfix.size())) { // endsWith("/archive");)
                 // We need to fetch the archive and set the header info before we send the header
-                std::string target(fetchArchive(url.substr(1, url.size() - 8))); // endsWith("/archive");)
+                std::string target(fetchArchive(url.substr(1, url.find_last_of('/') + 1))); // second character up to the last / (packagename/version/)
                 header.sendHeader(connection);
                 if(!target.compare("")) {
                     // file_body takes a CString representing the file path
@@ -182,10 +184,17 @@ class PokHandler : public CivetHandler {
 }
                 )";
 
+            if(item.find_first_of('/') > -1) { // we have extra
+                // do we start with a /?
+                if(item.find_first_of('/') == 0)
+                    item = item.substr(1);
+                
+                // do we have a / after this?
+                if(item.find_first_of('/') > 0)
+                    item = item.substr(0, item.find_first_of('/'));
+            }
             std::cout << "   \x1b[36m=> Searching for " << item << " in package repository" << std::endl;
 
-            json packages;
-            metaFile >> packages;
             // Find the item
             for(auto& temp : packages) {
                 for(auto& element : temp.items()) {
@@ -233,15 +242,17 @@ class PokHandler : public CivetHandler {
                 auto metaVersions = meta["versions"];
                 version = metaVersions[metaVersions.size() - 1].dump();
             }
+
             
             // List the files in /packages/package/version/
             std::string fileToRead;
-            std::string targetFolder = "/packages/";
+            std::string targetFolder = "../../packages/";
             targetFolder.append(package).append("/").append(version);
+            
+            std::cout << "   \x1b[36m=> Preparing to serve " << package << "/" << version << " from " << targetFolder <<  std::endl;
             std::vector<std::string> names(listDir(targetFolder.c_str()));
             if(names.size() > 1) {} // TODO: zip?
-
-            fileToRead = targetFolder.append("/").append(names.at(0));
+            fileToRead = targetFolder.append("/").append(names.at(2)); // . .. <folder contents>
             std::cout << "   \x1b[36m=> Serving " << fileToRead << std::endl;
             header.setStatusCode(200).setContentType("application/octet-stream");
             return fileToRead;
