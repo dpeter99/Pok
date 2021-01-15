@@ -11,6 +11,8 @@
 
 
 #include <iostream>
+#include <inc/json.h>
+using json = nlohmann::json;
 #include <inc/http.h>
 #include <sys/stat.h>
 #include <fstream>
@@ -42,7 +44,7 @@ int main(int argc, char* argv[]) {
     std::string host = "localhost";
     int port = 15060;
     std::string path = "/";
-    std::string destPath = "./downloads";
+    std::string destPath = "./downloads/";
 
     std::ofstream file;
 
@@ -93,10 +95,23 @@ int main(int argc, char* argv[]) {
         Request request(host.append(":").append(std::to_string(port)).append(path));
 
         const Response response = request.send("GET");
+        std::string contentType;
 
+        for(auto h : response.headers) {
+            if(h.find_first_of("Content-Type: ") == 0)
+                contentType = h.substr(strlen("Content-Type: "));
+        };
+        
         if(response.body.size() > 0) {
-            const std::string resBody(response.body.begin(), response.body.end());
-            puts(resBody.c_str());
+            if(contentType == "application/json") {
+                const std::string resBody(response.body.begin(), response.body.end());
+                json jsonResponse = json::parse(resBody);
+                std::cout << "Found package " << jsonResponse["name"] << ". Details: " << std::endl;
+                for (auto& el : jsonResponse.items()) {
+                    std::cout << el.key() << " : " << el.value() << "\n";
+                }
+                
+            }
         } else {
             puts("Server returned bad response");
         }
