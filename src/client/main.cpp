@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
             recursedir(destPath.substr(0, destPath.find_last_of('/')).c_str());
             
             // touch <file>
-            file.open(destPath);
+            file.open(destPath, std::ios_base::binary);
 
             break;
 
