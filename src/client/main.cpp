@@ -110,7 +110,8 @@ int main(int argc, char* argv[]) {
                 for (auto& el : jsonResponse.items()) {
                     std::cout << el.key() << " : " << el.value() << "\n";
                 }
-                
+            } else if(contentType == "application/octet-stream") {
+                for (const auto &e : response.body) file << e;
             }
         } else {
             puts("Server returned bad response");
